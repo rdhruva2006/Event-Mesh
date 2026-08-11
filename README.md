@@ -182,11 +182,4 @@ NATS JetStream.
 | Self-signed / no TLS between services | Terminate TLS at the gateway (e.g. via a reverse proxy/ingress) and enable NATS TLS + auth (`nats.conf` with credentials) |
 | Single NATS node | Run a NATS cluster (3+ nodes) for broker high availability |
 | No CI/CD | Add a pipeline that runs lint/tests and builds/pushes each service's Docker image on merge |
-
-## Submission Checklist
-
-- [x] Source code / GitHub repository
-- [x] README with setup instructions (this file)
-- [x] Architecture diagram (`ARCHITECTURE.md`)
-- [x] API documentation (`API_DOCUMENTATION.md`)
-- [x] Instructions to run the services locally (above)
+| `GET /api/notifications` (list-all) has no role check | Currently reachable by any authenticated user; add a `requireRole("admin")` middleware so it's restricted to admin accounts, same as any other admin-only endpoint |
