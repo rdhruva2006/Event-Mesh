@@ -1,4 +1,4 @@
-# Microservices Assignment — User & Notification System
+# Event Mesh — User & Notification System
 
 A small microservices-based backend consisting of two backend services
 (**User Service**, **Notification Service**) and an **API Gateway**, built
