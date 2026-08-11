@@ -1,0 +1,84 @@
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------
+  # Message broker (NATS with JetStream enabled for persistence,
+  # at-least-once delivery and durable consumers)
+  # ---------------------------------------------------------------
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-broker
+    command: ["-js", "-m", "8222"]   # -js enables JetStream, -m exposes monitoring on 8222
+    ports:
+      - "4222:4222"   # client connections
+      - "8222:8222"   # HTTP monitoring / health
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - backend-net
+
+  # ---------------------------------------------------------------
+  # User Service - owns user data, publishes domain events
+  # ---------------------------------------------------------------
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    env_file:
+      - ./user-service/.env
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    expose:
+      - "4001"
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------
+  # Notification Service - subscribes to user events, sends
+  # notifications, exposes a read-only query API
+  # ---------------------------------------------------------------
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    env_file:
+      - ./notification-service/.env
+    environment:
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    expose:
+      - "4002"
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------
+  # API Gateway - single public entry point, auth + routing
+  # ---------------------------------------------------------------
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    env_file:
+      - ./api-gateway/.env
+    environment:
+      - USER_SERVICE_URL=http://user-service:4001
+      - NOTIFICATION_SERVICE_URL=http://notification-service:4002
+    depends_on:
+      - user-service
+      - notification-service
+    ports:
+      - "3000:3000"   # only the gateway is exposed to the outside world
+    networks:
+      - backend-net
+    restart: unless-stopped
+
+networks:
+  backend-net:
+    driver: bridge
